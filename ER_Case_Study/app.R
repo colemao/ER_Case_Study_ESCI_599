@@ -58,6 +58,15 @@ ui <- fluidPage(
     fluidRow(
         column(2, actionButton("story", "Tell me a story")),
         column(10, textOutput("narrative"))
+    ),
+        
+    #display all stories with previous and next bottom 
+    fluidRow(
+        column(2),
+        column(2,actionButton("prevNarr", "Previous story")),
+        column(2,textOutput("current_narr")),
+        column(2, textOutput("counter")),
+        column(2,actionButton("nextNarr", "Next story"))
     )
 )
 
@@ -65,6 +74,8 @@ ui <- fluidPage(
 server <- function(input, output) {
 
     selected <- reactive(injuries %>% filter(prod_code == input$code))
+    selected_narr <- reactive(selected() %>% pull(narrative))
+    res <- reactiveValues(narrativeIndex = 1)
     
     ## modified code to change column names and number of entries 
     output$diag <- renderTable({
@@ -108,12 +119,36 @@ server <- function(input, output) {
         }
     }, res = 96)
     
-    #select narrative to display 
+    #function to increase the counter for narrative 
+    observeEvent(input$nextNarr,{
+        # the if statement is to keep the letterIndex in bounds
+        # (between 1 and 26)
+        if(res$narrativeIndex > length(selected_narr())-1) res$narrativeIndex <- 1
+        else res$narrativeIndex <- res$narrativeIndex + 1
+    })
+    
+    #function to decrease the counter for narrative 
+    observeEvent(input$prevNarr,{
+        if(res$narrativeIndex < 2) res$narrativeIndex <- length(selected_narr())
+        else res$narrativeIndex <- res$narrativeIndex - 1
+    })
+    
+    #select random narrative to display 
     narrative_sample <- eventReactive(
         list(input$story, selected()),
         selected() %>% pull(narrative) %>% sample(1)
     )
+    
+    #save ramdom narrative
     output$narrative <- renderText(narrative_sample())
+    
+    #save current narrative at current index    
+    output$current_narr <- renderText(selected_narr()[res$narrativeIndex])
+    
+    #save display text for narative counter 
+    output$counter <- renderText({ 
+        paste(res$narrativeIndex, " out of ", length(selected_narr()))
+    })
 }
 
 # Run the application 
